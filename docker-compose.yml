@@ -10,9 +10,9 @@ services:
     restart: always
     networks:
       - survey-network
-    depends_on:
-      oracle-db:
-        condition: service_healthy
+#    depends_on:
+#      oracle-db:
+#        condition: service_healthy
     environment:
       - TZ=Asia/Bangkok
       # These must match the ${} variables in your application.yml
