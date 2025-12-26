@@ -7,7 +7,7 @@ DB_NAME: FREEPDB1
 
 #minio
 #minio-url: http://sa_online_survey_api-minio1-1:9000
-minio-url: http://34.80.194.243:9000
+minio-url: http://35.234.48.245:9000
 minio-bucket: sa-resource
 MINIO_SECRETE_KEY: minio123
 MINIO_ACCESS_KEY: minio
