@@ -12,7 +12,7 @@ minio-bucket: sa-resource
 MINIO_SECRETE_KEY: minio123
 MINIO_ACCESS_KEY: minio
 #media
-base-uri: https://sa-api.supersurvey.live
+base-uri: https://resource.supersurvey.live
 image-endpoint: /api/v1/files
 video-endpoint: /api/v1/files
 survey-share-url: /api/v1/surveys/share/
