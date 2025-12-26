@@ -1,0 +1,46 @@
+services:
+
+  # --- Spring Boot API Service ---
+  online_survey_resource:
+    container_name: 'sa-resource-api'
+    image: asia-east1-docker.pkg.dev/strong-summer-481511-s6/my-survey-repo/resource-api:v1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - survey-network
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Bangkok
+      # These must match the ${} variables in your application.yml
+      - DB_HOST=oracle-db
+      - DB_PORT=1521
+      - DB_NAME=FREEPDB1
+      - DB_USERNAME=sa
+      - DB_PASSWORD=sa
+    ports:
+      - '8081:8081'
+    volumes:
+      - '/home/media:/home/media'
+      - './access-refresh-token-keys:/keys'
+    healthcheck:
+      # We check port 8888 because that is the internal server port
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+#networks:
+#  survey-network:
+#    driver: bridge
+networks:
+  survey-network:
+    external: true
+    name: sa_online_survey_api_survey-network
+
+volumes:
+  oracle_data:

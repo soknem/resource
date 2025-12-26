@@ -1,0 +1,56 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: resource
+  servlet: # this is for file upload
+    multipart:
+      max-file-size: 1000MB
+      max-request-size: 5000MB
+  datasource:
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+    url: jdbc:oracle:thin:@${DB_HOST}:${DB_PORT}/${DB_NAME}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.OracleDialect
+  profiles:
+    active: dev
+
+minio:
+  url: ${minio-url}
+  secret-key: ${MINIO_SECRETE_KEY}
+  bucket-name: ${minio-bucket}
+  access-key: ${MINIO_ACCESS_KEY}
+
+media:
+  #media endpoint
+  image-end-point: ${image-endpoint}
+  video-end-point: ${video-endpoint}
+  logo: ${logo-path}
+  survey-share: ${survey-share-url}
+  survey-share-base-uri: ${survey-base-url}
+
+  #the host that handle show image
+  base-uri: ${base-uri}
+
+
+
+#logging:
+#  level:
+#    org.hibernate.SQL: DEBUG
+#    org.hibernate.orm.jdbc.bind: TRACE
+#    org.springframework.jdbc.core: DEBUG
+#    root: debug
+#    org.springframework.web: debug
+#    org.springframework.security: debug
+#    com.online_survey.survey: debug
+#    org.springframework.mail: debug
+#    org.hibernate.engine.internal.Profiler: debug

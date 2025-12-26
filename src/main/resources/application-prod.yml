@@ -1,0 +1,21 @@
+DB_USERNAME: sa
+DB_PASSWORD: sa
+DB_HOST: oracle-free
+DB_PORT: 1521
+DB_NAME: FREEPDB1
+
+
+#minio
+#minio-url: http://sa_online_survey_api-minio1-1:9000
+minio-url: http://34.80.194.243:9000
+minio-bucket: sa-resource
+MINIO_SECRETE_KEY: minio123
+MINIO_ACCESS_KEY: minio
+#media
+base-uri: https://sa-api.supersurvey.live
+image-endpoint: /api/v1/files
+video-endpoint: /api/v1/files
+survey-share-url: /api/v1/surveys/share/
+survey-base-url: https://supersurvey.live
+
+logo-path: static/images/logo.png

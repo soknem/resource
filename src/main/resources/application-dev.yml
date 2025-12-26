@@ -1,0 +1,34 @@
+DB_USERNAME: sa
+DB_PASSWORD: sa
+DB_HOST: localhost
+DB_PORT: 1521
+DB_NAME: orcl
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.springframework.jdbc.core: DEBUG
+    root: debug
+    org.springframework.web: debug
+    org.springframework.security: debug
+    com.online_survey.survey: debug
+    org.springframework.mail: debug
+    org.hibernate.engine.internal.Profiler: debug
+
+#minio
+#minio-url: http://sa_online_survey_api-minio1-1:9000
+minio-url: http://34.80.194.243:9000
+minio-bucket: sa-resource
+MINIO_SECRETE_KEY: minio123
+MINIO_ACCESS_KEY: minio
+#media
+#base-uri: https://fd841f57c668.ngrok-free.app
+#base-uri: https://supersurvey.live
+base-uri: http://localhost:8080
+image-endpoint: /api/v1/files
+video-endpoint: /api/v1/files
+logo-path: static/images/logo.png
+survey-share-url: /api/v1/surveys/share/
+#survey-base-url: https://supersurvey.live
+survey-base-url: http://localhost:8080
