@@ -237,4 +237,51 @@ public class FileServiceImpl implements FileService {
 
         return contentType.split("/")[0];
     }
+
+    @Override
+    public Resource viewFileRange(String fileName, String rangeHeader) {
+        File fileMetadata = fileRepository.findByFileName(fileName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        long fileSize = fileMetadata.getFileSize();
+        String objectPath = fileMetadata.getFolder() + "/" + fileMetadata.getFileName();
+
+        // Default values for the whole file
+        long start = 0;
+        long end = fileSize - 1;
+
+        // Parse Range Header: "bytes=start-end"
+        if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
+            String[] ranges = rangeHeader.substring(6).split("-");
+            try {
+                start = Long.parseLong(ranges[0]);
+                if (ranges.length > 1 && !ranges[1].isEmpty()) {
+                    end = Long.parseLong(ranges[1]);
+                }
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid range format");
+            }
+        }
+
+        if (start > end || start >= fileSize) {
+            throw new ResponseStatusException(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
+        }
+
+        long contentLength = (end - start) + 1;
+
+        try {
+            // Fetch only the requested range from MinIO
+            InputStream inputStream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectPath)
+                            .offset(start)
+                            .length(contentLength)
+                            .build()
+            );
+            return new InputStreamResource(inputStream);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "MinIO error", e);
+        }
+    }
 }

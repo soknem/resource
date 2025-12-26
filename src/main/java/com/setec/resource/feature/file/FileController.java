@@ -1,5 +1,6 @@
 package com.setec.resource.feature.file;
 
+import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileResponse;
 import com.setec.resource.feature.file.dto.FileViewResponse;
 import io.minio.errors.*;
@@ -12,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -24,6 +26,7 @@ import java.util.List;
 public class FileController {
 
     private final FileService fileService;
+    private final FileRepository fileRepository;
 
 
     @ResponseStatus(HttpStatus.CREATED)
@@ -73,14 +76,37 @@ public class FileController {
     }
 
     @GetMapping(value = "/view/{fileName}")
-    public ResponseEntity<InputStreamResource> viewByFileName(@PathVariable String fileName) throws ServerException, InsufficientDataException, ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException, ServerException, InsufficientDataException, ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException {
-        FileViewResponse file = fileService.viewFileByFileName(fileName);
+    public ResponseEntity<Resource> viewByFileName(
+            @PathVariable String fileName,
+            @RequestHeader(value = "Range", required = false) String rangeHeader) {
 
-        return ResponseEntity
-                .ok()
-                .contentType(MediaType.parseMediaType(file.contentType()))
-                .contentLength(file.fileSize())
-                .body(file.stream());
+        File fileMetadata = fileRepository.findByFileName(fileName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        Resource resource = fileService.viewFileRange(fileName, rangeHeader);
+
+        long fileSize = fileMetadata.getFileSize();
+
+        // If no range is requested, send the whole file (Status 200)
+        if (rangeHeader == null) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(fileMetadata.getContentType()))
+                    .contentLength(fileSize)
+                    .body(resource);
+        }
+
+        // Parse start/end for the Content-Range header
+        String[] ranges = rangeHeader.substring(6).split("-");
+        long start = Long.parseLong(ranges[0]);
+        long end = (ranges.length > 1 && !ranges[1].isEmpty()) ? Long.parseLong(ranges[1]) : fileSize - 1;
+
+        // Return 206 Partial Content for video seeking
+        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+                .contentType(MediaType.parseMediaType(fileMetadata.getContentType()))
+                .header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + fileSize)
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .contentLength((end - start) + 1)
+                .body(resource);
     }
 
 }

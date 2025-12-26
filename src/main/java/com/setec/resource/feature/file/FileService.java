@@ -91,4 +91,5 @@ public interface FileService {
             ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException, ServerException;
 
 
+    Resource viewFileRange(String fileName, String rangeHeader);
 }

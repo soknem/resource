@@ -30,7 +30,8 @@ public class    MinioServiceImpl implements MinioService {
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .stream(inputStream, inputStream.available(), -1)
+//                            .stream(inputStream, inputStream.available(), -1)
+                            .stream(inputStream, file.getSize(), -1)
                             .contentType(file.getContentType())
                             .build()
             );
