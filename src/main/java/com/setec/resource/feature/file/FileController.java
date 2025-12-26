@@ -2,6 +2,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileResponse;
+import com.setec.resource.feature.file.dto.FileStreamResponse;
 import com.setec.resource.feature.file.dto.FileViewResponse;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +53,7 @@ public class FileController {
     }
 
 
-//    @PreAuthorize("hasAnyAuthority('file:delete')")
+    //    @PreAuthorize("hasAnyAuthority('file:delete')")
     @DeleteMapping("/{fileName}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void deleteFileByName(@PathVariable String fileName) {
@@ -80,33 +81,22 @@ public class FileController {
             @PathVariable String fileName,
             @RequestHeader(value = "Range", required = false) String rangeHeader) {
 
-        File fileMetadata = fileRepository.findByFileName(fileName)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        FileStreamResponse stream = fileService.getFileStream(fileName, rangeHeader);
 
-        Resource resource = fileService.viewFileRange(fileName, rangeHeader);
-
-        long fileSize = fileMetadata.getFileSize();
-
-        // If no range is requested, send the whole file (Status 200)
-        if (rangeHeader == null) {
+        // Case 1: Standard 200 OK (Full File)
+        if (!stream.isPartial()) {
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(fileMetadata.getContentType()))
-                    .contentLength(fileSize)
-                    .body(resource);
+                    .contentType(MediaType.parseMediaType(stream.contentType()))
+                    .contentLength(stream.fileSize())
+                    .body(stream.resource());
         }
 
-        // Parse start/end for the Content-Range header
-        String[] ranges = rangeHeader.substring(6).split("-");
-        long start = Long.parseLong(ranges[0]);
-        long end = (ranges.length > 1 && !ranges[1].isEmpty()) ? Long.parseLong(ranges[1]) : fileSize - 1;
-
-        // Return 206 Partial Content for video seeking
+        // Case 2: 206 Partial Content (Video Seeking)
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                .contentType(MediaType.parseMediaType(fileMetadata.getContentType()))
-                .header(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + fileSize)
+                .contentType(MediaType.parseMediaType(stream.contentType()))
+                .header(HttpHeaders.CONTENT_RANGE, "bytes " + stream.start() + "-" + stream.end() + "/" + stream.fileSize())
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .contentLength((end - start) + 1)
-                .body(resource);
+                .contentLength((stream.end() - stream.start()) + 1)
+                .body(stream.resource());
     }
-
 }

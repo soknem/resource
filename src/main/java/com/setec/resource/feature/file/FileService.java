@@ -2,6 +2,7 @@ package com.setec.resource.feature.file;
 
 
 import com.setec.resource.feature.file.dto.FileResponse;
+import com.setec.resource.feature.file.dto.FileStreamResponse;
 import com.setec.resource.feature.file.dto.FileViewResponse;
 import io.minio.errors.*;
 import org.springframework.core.io.Resource;
@@ -92,4 +93,12 @@ public interface FileService {
 
 
     Resource viewFileRange(String fileName, String rangeHeader);
+
+    /**
+     * Handles both full and partial (Range) file streaming logic.
+     * @param fileName the name of the file
+     * @param rangeHeader the HTTP Range header from the request
+     * @return {@link FileStreamResponse}
+     */
+    FileStreamResponse getFileStream(String fileName, String rangeHeader);
 }

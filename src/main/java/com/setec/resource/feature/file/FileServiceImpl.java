@@ -3,6 +3,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileResponse;
+import com.setec.resource.feature.file.dto.FileStreamResponse;
 import com.setec.resource.feature.file.dto.FileViewResponse;
 import com.setec.resource.feature.minio.MinioService;
 import com.setec.resource.util.MediaUtil;
@@ -284,6 +285,56 @@ public class FileServiceImpl implements FileService {
             return new InputStreamResource(inputStream);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "MinIO error", e);
+        }
+    }
+
+    @Override
+    public FileStreamResponse getFileStream(String fileName, String rangeHeader) {
+        File fileMetadata = fileRepository.findByFileName(fileName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+
+        long fileSize = fileMetadata.getFileSize();
+        String objectPath = fileMetadata.getFolder() + "/" + fileMetadata.getFileName();
+
+        long start = 0;
+        long end = fileSize - 1;
+        boolean isPartial = false;
+
+        // Parse Range Header
+        if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
+            isPartial = true;
+            String[] ranges = rangeHeader.substring(6).split("-");
+            try {
+                start = Long.parseLong(ranges[0]);
+                if (ranges.length > 1 && !ranges[1].isEmpty()) {
+                    end = Math.min(Long.parseLong(ranges[1]), fileSize - 1);
+                }
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Range header");
+            }
+        }
+
+        if (start > end || start >= fileSize) {
+            throw new ResponseStatusException(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
+        }
+
+        try {
+            long contentLength = (end - start) + 1;
+            // Call your MinIO service range method
+            InputStream inputStream = minioService.getFile(objectPath, start, contentLength);
+            Resource resource = new InputStreamResource(inputStream);
+
+            return new FileStreamResponse(
+                    resource,
+                    fileMetadata.getContentType(),
+                    fileSize,
+                    start,
+                    end,
+                    isPartial
+            );
+        } catch (Exception e) {
+            log.error("Error streaming file: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Streaming failed");
         }
     }
 }

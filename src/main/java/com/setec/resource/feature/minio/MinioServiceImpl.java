@@ -77,8 +77,8 @@ public class    MinioServiceImpl implements MinioService {
                     GetObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .offset(offset)  // Start at this byte
-                            .length(length)  // Read this many bytes
+                            .offset(offset)
+                            .length(length)
                             .build()
             );
         } catch (MinioException e) {
