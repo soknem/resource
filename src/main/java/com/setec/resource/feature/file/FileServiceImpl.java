@@ -271,14 +271,16 @@ public class FileServiceImpl implements FileService {
 
         try {
             // Fetch only the requested range from MinIO
-            InputStream inputStream = minioClient.getObject(
-                    GetObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectPath)
-                            .offset(start)
-                            .length(contentLength)
-                            .build()
-            );
+//            InputStream inputStream = minioClient.getObject(
+//                    GetObjectArgs.builder()
+//                            .bucket(bucketName)
+//                            .object(objectPath)
+//                            .offset(start)
+//                            .length(contentLength)
+//                            .build()
+//            );
+//            return new InputStreamResource(inputStream);
+            InputStream inputStream = minioService.getFile(objectPath, start, contentLength);
             return new InputStreamResource(inputStream);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "MinIO error", e);

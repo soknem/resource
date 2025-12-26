@@ -45,4 +45,7 @@ public interface MinioService {
      */
 
     void deleteFile(String objectName) throws Exception;
+
+    // Add this to your interface
+    InputStream getFile(String objectName, long offset, long length) throws Exception;
 }

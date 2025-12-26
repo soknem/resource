@@ -69,4 +69,20 @@ public class    MinioServiceImpl implements MinioService {
             throw new Exception("Error occurred: " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public InputStream getFile(String objectName, long offset, long length) throws Exception {
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .offset(offset)  // Start at this byte
+                            .length(length)  // Read this many bytes
+                            .build()
+            );
+        } catch (MinioException e) {
+            throw new Exception("Error occurred while fetching range: " + e.getMessage(), e);
+        }
+    }
 }
