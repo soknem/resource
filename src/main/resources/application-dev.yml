@@ -25,7 +25,7 @@ MINIO_ACCESS_KEY: minio
 #media
 #base-uri: https://fd841f57c668.ngrok-free.app
 #base-uri: https://supersurvey.live
-base-uri: http://localhost:8080
+base-uri: http://localhost:8081
 image-endpoint: /api/v1/files
 video-endpoint: /api/v1/files
 logo-path: static/images/logo.png

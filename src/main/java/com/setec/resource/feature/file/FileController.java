@@ -2,9 +2,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
-import com.setec.resource.feature.file.dto.FileResponse;
-import com.setec.resource.feature.file.dto.FileStreamResponse;
-import com.setec.resource.feature.file.dto.FileViewResponse;
+import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
@@ -30,13 +28,23 @@ public class FileController {
     private final FileService fileService;
     private final FileRepository fileRepository;
 
+    @GetMapping("/name")
+    public List<FileNameResponse> getAllFileName(){
+        return fileService.getAllFileNames();
+    }
+
+    @DeleteMapping("/name")
+    public void getAllFileName(@RequestBody List<FileDeleteRequest> fileDeleteRequests){
+         fileService.delete(fileDeleteRequests);
+    }
+
 
     @ResponseStatus(HttpStatus.CREATED)
 //    @PreAuthorize("hasAnyAuthority('file:write')")
     @PostMapping(value = "", consumes = "multipart/form-data")
     FileResponse uploadFile(@RequestPart MultipartFile file,
                             @RequestParam(defaultValue = "false") boolean compress,
-                            @RequestParam(defaultValue = "NONE")CompressLevel level
+                            @RequestParam(defaultValue = "LOW")CompressLevel level
 
                             ) {
 

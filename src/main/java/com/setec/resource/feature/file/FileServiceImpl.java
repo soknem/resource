@@ -3,10 +3,9 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
-import com.setec.resource.feature.file.dto.FileResponse;
-import com.setec.resource.feature.file.dto.FileStreamResponse;
-import com.setec.resource.feature.file.dto.FileViewResponse;
+import com.setec.resource.feature.file.dto.*;
 import com.setec.resource.feature.minio.MinioService;
+import com.setec.resource.util.FileCompressUtil;
 import com.setec.resource.util.MediaUtil;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
@@ -22,10 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,12 +57,13 @@ public class FileServiceImpl implements FileService {
         String folderName = getValidFolder(file);
 
         if (!contentType.startsWith("image/")) {
-            compress = false; // Only compress images for now
+            compress = false; // Only compress images
         }
 
         String originalExtension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
-        String extension = compress ? "jpg" : originalExtension; // Convert to JPG for better compression
-        contentType = compress ? "image/jpeg" : contentType;
+        String extension = originalExtension; // Convert to JPG for better compression
+//        String extension = compress ? "jpg" : originalExtension;
+//        contentType = compress ? "image/jpeg" : contentType;
 
         String newName;
         do {
@@ -80,8 +77,9 @@ public class FileServiceImpl implements FileService {
         try {
             inputStream = file.getInputStream();
             if (compress) {
+                double compressLevel = FileCompressUtil.getCompressValue(level);
                 long[] compressedSize = new long[1];
-                InputStream compressedStream = compressImage(inputStream, compressedSize);
+                InputStream compressedStream = compressImage(inputStream, compressedSize,compressLevel,extension);
                 size = compressedSize[0];
                 inputStream.close();
                 inputStream = compressedStream;
@@ -126,12 +124,12 @@ public class FileServiceImpl implements FileService {
                 .build();
 }
 
-    private InputStream compressImage(InputStream inputStream, long[] outSize) throws IOException {
+    private InputStream compressImage(InputStream inputStream, long[] outSize,double level,String extension) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         Thumbnails.of(inputStream)
                 .scale(1.0) // No resize, just compress
-                .outputQuality(0.8) // 80% quality; adjust 0.0-1.0 (lower = more compression)
+                .outputQuality(level) // 80% quality; adjust 0.0-1.0 (lower = more compression)
                 .outputFormat("jpg") // Force JPG for best size reduction
                 .toOutputStream(baos);
 
@@ -167,6 +165,18 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    public void delete(List<FileDeleteRequest> fileDeleteRequests) {
+        for(FileDeleteRequest fileDeleteRequest:fileDeleteRequests){
+            deleteFileByName(fileDeleteRequest.fileName());
+        }
+    }
+
+    @Override
+    public List<FileNameResponse> getAllFileNames() {
+        return fileRepository.findAllFileNames();
+    }
+
+    @Override
     public FileResponse loadFileByName(String fileName) {
 
         try {
@@ -191,14 +201,13 @@ public class FileServiceImpl implements FileService {
 
         File file = fileRepository.findByFileName(fileName).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,String.format("file = %s has not been found",fileName)));
 
-        fileRepository.delete(file);
-
         try {
-            String contentType = getContentType(fileName);
 
-            String folderName = contentType.split("/")[0];
+            String folderName = file.getFolder();
 
             String objectName = folderName + "/" + fileName;
+
+            fileRepository.delete(file);
 
             minioService.deleteFile(objectName);
 

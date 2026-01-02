@@ -2,9 +2,7 @@ package com.setec.resource.feature.file;
 
 
 import com.setec.resource.domain.CompressLevel;
-import com.setec.resource.feature.file.dto.FileResponse;
-import com.setec.resource.feature.file.dto.FileStreamResponse;
-import com.setec.resource.feature.file.dto.FileViewResponse;
+import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,6 +41,11 @@ public interface FileService {
      */
     List<FileResponse> loadAllFiles();
 
+    void delete(List<FileDeleteRequest> fileDeleteRequests);
+
+
+    List<FileNameResponse> getAllFileNames();
+
     /**
      * get file by filename
      *
@@ -51,6 +54,7 @@ public interface FileService {
      * @author Pov soknem
      * @since 1.0 (2024)
      */
+
 
     FileResponse loadFileByName(String fileName);
 
