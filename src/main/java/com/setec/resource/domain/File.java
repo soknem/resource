@@ -27,4 +27,6 @@ public class File{
 
     String extension;
 
+    CompressLevel level = CompressLevel.NONE;
+
 }
