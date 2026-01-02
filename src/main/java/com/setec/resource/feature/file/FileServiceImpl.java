@@ -11,6 +11,7 @@ import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -20,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -53,24 +57,48 @@ public class FileServiceImpl implements FileService {
     String bucketName;
 
     @Override
-    public FileResponse uploadSingleFile(MultipartFile file) {
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress) {
 
+        String contentType = file.getContentType();
         String folderName = getValidFolder(file);
 
-        String extension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
+        if (!contentType.startsWith("image/")) {
+            compress = false; // Only compress images for now
+        }
+
+        String originalExtension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
+        String extension = compress ? "jpg" : originalExtension; // Convert to JPG for better compression
+        contentType = compress ? "image/jpeg" : contentType;
 
         String newName;
         do {
             newName = UUID.randomUUID().toString();
         } while (fileRepository.existsByFileName(newName + "." + extension));
 
-
         String objectName = folderName + "/" + newName + "." + extension;
 
+        long size = file.getSize();
+        InputStream inputStream = null;
         try {
-            minioService.uploadFile(file, objectName);
+            inputStream = file.getInputStream();
+            if (compress) {
+                long[] compressedSize = new long[1];
+                InputStream compressedStream = compressImage(inputStream, compressedSize);
+                size = compressedSize[0];
+                inputStream.close();
+                inputStream = compressedStream;
+            }
+            minioService.uploadFile(inputStream, size, contentType, objectName);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException ignored) {
+                    // Ignore close errors
+                }
+            }
         }
 
         //create new object that store file metadata
@@ -79,9 +107,9 @@ public class FileServiceImpl implements FileService {
         //set all field
         fileObject.setFileName(newName + "." + extension);
 
-        fileObject.setFileSize(file.getSize());
+        fileObject.setFileSize(size);
 
-        fileObject.setContentType(file.getContentType());
+        fileObject.setContentType(contentType);
 
         fileObject.setFolder(folderName);
 
@@ -93,11 +121,29 @@ public class FileServiceImpl implements FileService {
         //response to DTO
         return FileResponse.builder()
                 .name(newName + "." + extension)
-                .contentType(file.getContentType())
+                .contentType(contentType)
                 .extension(extension)
-                .size(file.getSize())
+                .size(size)
                 .uri(baseUri + imageEndpoint + "/view/" + newName + "." + extension)
                 .build();
+}
+
+    private InputStream compressImage(InputStream inputStream, long[] outSize) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        Thumbnails.of(inputStream)
+                .scale(1.0) // No resize, just compress
+                .outputQuality(0.8) // 80% quality; adjust 0.0-1.0 (lower = more compression)
+                .outputFormat("jpg") // Force JPG for best size reduction
+                .toOutputStream(baos);
+
+        outSize[0] = baos.size();
+        return new ByteArrayInputStream(baos.toByteArray());
+    }
+
+    @Override
+    public FileResponse uploadSingleFile(MultipartFile file) {
+        return null;
     }
 
     @Override

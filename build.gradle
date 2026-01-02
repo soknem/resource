@@ -31,6 +31,9 @@ dependencies {
 	runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
 	annotationProcessor 'org.projectlombok:lombok'
 	implementation 'io.minio:minio:8.5.10'
+
+	// https://mvnrepository.com/artifact/net.coobird/thumbnailator
+	implementation 'net.coobird:thumbnailator:0.4.21'
 }
 
 tasks.named('test') {

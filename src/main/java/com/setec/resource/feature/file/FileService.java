@@ -21,6 +21,8 @@ import java.util.List;
  */
 public interface FileService {
 
+    FileResponse uploadSingleFile(MultipartFile file, boolean compress);
+
     /**
      * Uploads a single media file.
      *

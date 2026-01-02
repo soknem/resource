@@ -33,9 +33,10 @@ public class FileController {
     @ResponseStatus(HttpStatus.CREATED)
 //    @PreAuthorize("hasAnyAuthority('file:write')")
     @PostMapping(value = "", consumes = "multipart/form-data")
-    FileResponse uploadFile(@RequestPart MultipartFile file) {
+    FileResponse uploadFile(@RequestPart MultipartFile file,
+                            @RequestParam(defaultValue = "false") boolean compress) {
 
-        return fileService.uploadSingleFile(file);
+        return fileService.uploadSingleFile(file, compress);
     }
 
 

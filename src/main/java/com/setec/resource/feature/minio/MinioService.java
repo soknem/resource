@@ -12,6 +12,8 @@ import java.io.InputStream;
  */
 public interface MinioService {
 
+    void uploadFile(InputStream inputStream, long size, String contentType, String objectName) throws Exception;
+
     /**
      * upload file
      *

@@ -15,7 +15,7 @@ import java.io.InputStream;
 @Service
 @RequiredArgsConstructor
 //@RefreshScope
-public class    MinioServiceImpl implements MinioService {
+public class MinioServiceImpl implements MinioService {
 
     private final MinioClient minioClient;
 
@@ -23,21 +23,26 @@ public class    MinioServiceImpl implements MinioService {
     private String bucketName;
 
     @Override
-    public void uploadFile(MultipartFile file, String objectName) throws Exception {
-
-        try (InputStream inputStream = file.getInputStream()) {
+    public void uploadFile(InputStream inputStream, long size, String contentType, String objectName) throws Exception {
+        try {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-//                            .stream(inputStream, inputStream.available(), -1)
-                            .stream(inputStream, file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .stream(inputStream, size, -1)
+                            .contentType(contentType)
                             .build()
             );
         } catch (Exception e) {
             throw new Exception("File upload failed: " + e.getMessage(), e);
+        } finally {
+            inputStream.close(); // Ensure stream is closed
         }
+    }
+
+    @Override
+    public void uploadFile(MultipartFile file, String objectName) throws Exception {
+        uploadFile(file.getInputStream(), file.getSize(), file.getContentType(), objectName);
     }
 
     @Override
