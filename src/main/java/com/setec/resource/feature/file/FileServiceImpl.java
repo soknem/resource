@@ -29,10 +29,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -190,6 +187,10 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void deleteFileByName(String fileName) {
+
+        File file = fileRepository.findByFileName(fileName).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,String.format("file = %s has not been found",fileName)));
+
+        fileRepository.delete(file);
 
         try {
             String contentType = getContentType(fileName);
