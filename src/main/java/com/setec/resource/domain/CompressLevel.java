@@ -2,8 +2,9 @@ package com.setec.resource.domain;
 
 public enum CompressLevel {
 
+    ULTRA,
     EXTREME,
-    HIGHT,
+    HIGH,
     MEDIUM,
     LOW,
     NONE
