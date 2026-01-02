@@ -1,6 +1,7 @@
 package com.setec.resource.feature.file;
 
 
+import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileResponse;
 import com.setec.resource.feature.file.dto.FileStreamResponse;
@@ -54,7 +55,7 @@ public class FileServiceImpl implements FileService {
     String bucketName;
 
     @Override
-    public FileResponse uploadSingleFile(MultipartFile file, boolean compress) {
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level) {
 
         String contentType = file.getContentType();
         String folderName = getValidFolder(file);

@@ -1,6 +1,7 @@
 package com.setec.resource.feature.file;
 
 
+import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.feature.file.dto.FileResponse;
 import com.setec.resource.feature.file.dto.FileStreamResponse;
 import com.setec.resource.feature.file.dto.FileViewResponse;
@@ -21,7 +22,7 @@ import java.util.List;
  */
 public interface FileService {
 
-    FileResponse uploadSingleFile(MultipartFile file, boolean compress);
+    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level);
 
     /**
      * Uploads a single media file.

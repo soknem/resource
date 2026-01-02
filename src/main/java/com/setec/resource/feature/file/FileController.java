@@ -1,5 +1,6 @@
 package com.setec.resource.feature.file;
 
+import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileResponse;
 import com.setec.resource.feature.file.dto.FileStreamResponse;
@@ -34,9 +35,12 @@ public class FileController {
 //    @PreAuthorize("hasAnyAuthority('file:write')")
     @PostMapping(value = "", consumes = "multipart/form-data")
     FileResponse uploadFile(@RequestPart MultipartFile file,
-                            @RequestParam(defaultValue = "false") boolean compress) {
+                            @RequestParam(defaultValue = "false") boolean compress,
+                            @RequestParam(defaultValue = "NONE")CompressLevel level
 
-        return fileService.uploadSingleFile(file, compress);
+                            ) {
+
+        return fileService.uploadSingleFile(file, compress,level);
     }
 
 
