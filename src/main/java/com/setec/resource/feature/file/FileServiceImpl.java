@@ -248,43 +248,6 @@ public class FileServiceImpl implements FileService {
     }
 
 
-    private FileViewResponse viewFile(File file) {
-
-        // Fetch file metadata from the repository
-//        File image = fileRepository.findByFileName(fileName).orElseThrow(() ->
-//                new ResponseStatusException(HttpStatus.NOT_FOUND, "File has not been found!"));
-
-        // Construct the object path in MinIO
-        Path path = Path.of(file.getFileName());
-        String objectPath = file.getFolder() + "/" + path;
-
-
-        // Fetch the object from MinIO
-        GetObjectArgs getObjectArgs = GetObjectArgs.builder()
-                .bucket(bucketName)
-                .object(objectPath)
-                .build();
-
-        InputStream inputStream;
-        try {
-            inputStream = minioClient.getObject(getObjectArgs);
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching file from storage", e);
-        }
-
-        // Wrap the InputStream in an InputStreamResource
-        InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-
-        // Construct and return the response
-        return FileViewResponse.builder()
-                .fileName(file.getFileName())
-                .fileSize(file.getFileSize())
-                .contentType(file.getContentType())
-                .stream(inputStreamResource)
-                .build();
-    }
-
-
     private String getContentType(String fileName) {
         File fileObject = fileRepository.findByFileName(fileName).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("file = %s has not been found", fileName)));
         return fileObject.getContentType();
@@ -403,6 +366,35 @@ public class FileServiceImpl implements FileService {
     @Override
     public FileViewResponse getBackground(String type) {
 
-       return viewFile(fileRepository.findOneRandomByType(type));
+        File file= fileRepository.findOneRandomByType(type);
+
+        Path path = Path.of(file.getFileName());
+        String objectPath = file.getFolder() + "/" + path;
+
+
+        // Fetch the object from MinIO
+        GetObjectArgs getObjectArgs = GetObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectPath)
+                .build();
+
+        InputStream inputStream;
+        try {
+            inputStream = minioClient.getObject(getObjectArgs);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching file from storage", e);
+        }
+
+        // Wrap the InputStream in an InputStreamResource
+        InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+
+        // Construct and return the response
+        return FileViewResponse.builder()
+                .fileName(file.getFileName())
+                .fileSize(file.getFileSize())
+                .contentType(file.getContentType())
+                .stream(inputStreamResource)
+                .build();
     }
+
 }
