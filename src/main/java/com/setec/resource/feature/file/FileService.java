@@ -2,6 +2,7 @@ package com.setec.resource.feature.file;
 
 
 import com.setec.resource.domain.CompressLevel;
+import com.setec.resource.domain.FileType;
 import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import org.springframework.core.io.Resource;
@@ -20,7 +21,7 @@ import java.util.List;
  */
 public interface FileService {
 
-    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level);
+    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type);
 
     /**
      * Uploads a single media file.
@@ -78,25 +79,25 @@ public interface FileService {
      */
     Resource downloadFileByName(String fileName);
 
-    /**
-     * view file by file name
-     *
-     * @param fileName the name of the file to check for existence
-     * @return {@link FileViewResponse}
-     * @throws InsufficientDataException       if not enough data is available
-     * @throws ErrorResponseException          if an error response is received from the server
-     * @throws IOException                     if an I/O error occurs
-     * @throws NoSuchAlgorithmException        if the specified algorithm is not available
-     * @throws InvalidKeyException             if the key is invalid
-     * @throws InvalidResponseException        if the response from the server is invalid
-     * @throws XmlParserException              if an error occurs while parsing XML
-     * @throws InternalException               if an internal error occurs
-     * @throws ServerException if a server-side error occurs
-     * @author Pov soknem
-     * @since 1.0 (2024)
-     */
-    FileViewResponse viewFileByFileName(String fileName) throws InsufficientDataException,
-            ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException, ServerException;
+//    /**
+//     * view file by file name
+//     *
+//     * @param fileName the name of the file to check for existence
+//     * @return {@link FileViewResponse}
+//     * @throws InsufficientDataException       if not enough data is available
+//     * @throws ErrorResponseException          if an error response is received from the server
+//     * @throws IOException                     if an I/O error occurs
+//     * @throws NoSuchAlgorithmException        if the specified algorithm is not available
+//     * @throws InvalidKeyException             if the key is invalid
+//     * @throws InvalidResponseException        if the response from the server is invalid
+//     * @throws XmlParserException              if an error occurs while parsing XML
+//     * @throws InternalException               if an internal error occurs
+//     * @throws ServerException if a server-side error occurs
+//     * @author Pov soknem
+//     * @since 1.0 (2024)
+//     */
+//    FileViewResponse viewFileByFileName(String fileName) throws InsufficientDataException,
+//            ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException, ServerException;
 
 
     Resource viewFileRange(String fileName, String rangeHeader);
@@ -108,4 +109,7 @@ public interface FileService {
      * @return {@link FileStreamResponse}
      */
     FileStreamResponse getFileStream(String fileName, String rangeHeader);
+
+
+    FileViewResponse getBackground(String type);
 }

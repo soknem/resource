@@ -30,4 +30,7 @@ public class File{
     @Enumerated(EnumType.STRING)
     CompressLevel compressLevel =CompressLevel.LOW;
 
+    @Enumerated(EnumType.STRING)
+    FileType type = FileType.DEFAULT;
+
 }

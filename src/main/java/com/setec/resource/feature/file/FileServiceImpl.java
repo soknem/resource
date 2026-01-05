@@ -3,6 +3,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
+import com.setec.resource.domain.FileType;
 import com.setec.resource.feature.file.dto.*;
 import com.setec.resource.feature.minio.MinioService;
 import com.setec.resource.util.FileCompressUtil;
@@ -51,7 +52,7 @@ public class FileServiceImpl implements FileService {
     String bucketName;
 
     @Override
-    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level) {
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type) {
 
         String contentType = file.getContentType();
         String folderName = getValidFolder(file);
@@ -111,6 +112,8 @@ public class FileServiceImpl implements FileService {
 
         fileObject.setExtension(extension);
 
+        fileObject.setType(type);
+
         //save file metadata to database
         fileRepository.save(fileObject);
 
@@ -120,6 +123,7 @@ public class FileServiceImpl implements FileService {
                 .contentType(contentType)
                 .extension(extension)
                 .size(size)
+                .type(type)
                 .uri(baseUri + imageEndpoint + "/view/" + newName + "." + extension)
                 .build();
 }
@@ -156,6 +160,7 @@ public class FileServiceImpl implements FileService {
                     .contentType(file.getContentType())
                     .extension(file.getExtension())
                     .size(file.getFileSize())
+                    .type(file.getType())
                     .uri(baseUri + imageEndpoint + "/view/" + file.getFileName())
                     .build();
             responses.add(response);
@@ -242,16 +247,16 @@ public class FileServiceImpl implements FileService {
         }
     }
 
-    @Override
-    public FileViewResponse viewFileByFileName(String fileName) {
+
+    private FileViewResponse viewFile(File file) {
 
         // Fetch file metadata from the repository
-        File image = fileRepository.findByFileName(fileName).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "File has not been found!"));
+//        File image = fileRepository.findByFileName(fileName).orElseThrow(() ->
+//                new ResponseStatusException(HttpStatus.NOT_FOUND, "File has not been found!"));
 
         // Construct the object path in MinIO
-        Path path = Path.of(image.getFileName());
-        String objectPath = image.getFolder() + "/" + path;
+        Path path = Path.of(file.getFileName());
+        String objectPath = file.getFolder() + "/" + path;
 
 
         // Fetch the object from MinIO
@@ -272,9 +277,9 @@ public class FileServiceImpl implements FileService {
 
         // Construct and return the response
         return FileViewResponse.builder()
-                .fileName(image.getFileName())
-                .fileSize(image.getFileSize())
-                .contentType(image.getContentType())
+                .fileName(file.getFileName())
+                .fileSize(file.getFileSize())
+                .contentType(file.getContentType())
                 .stream(inputStreamResource)
                 .build();
     }
@@ -393,5 +398,11 @@ public class FileServiceImpl implements FileService {
             log.error("Error streaming file: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Streaming failed");
         }
+    }
+
+    @Override
+    public FileViewResponse getBackground(String type) {
+
+       return viewFile(fileRepository.findOneRandomByType(type));
     }
 }
