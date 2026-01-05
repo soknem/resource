@@ -116,7 +116,13 @@ public class FileController {
     }
 
     @GetMapping("/background")
-    public FileViewResponse getBackground(@RequestParam(defaultValue = "DEFAULT") String type){
-        return fileService.getBackground(type);
+    public ResponseEntity<Resource> getBackground(@RequestParam(defaultValue = "DEFAULT") String type) {
+        // We change the service slightly to return a wrapper or just the resource
+        var response = fileService.getBackground(type);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(response.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + response.fileName() + "\"")
+                .body(response.stream());
     }
 }

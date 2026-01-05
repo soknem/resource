@@ -3,6 +3,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileNameResponse;
+import com.setec.resource.feature.file.dto.FileResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
