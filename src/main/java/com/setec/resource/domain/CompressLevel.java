@@ -6,6 +6,5 @@ public enum CompressLevel {
     EXTREME,
     HIGH,
     MEDIUM,
-    LOW,
-    NONE
+    LOW
 }

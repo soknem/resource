@@ -28,6 +28,6 @@ public class File{
     String extension;
 
     @Enumerated(EnumType.STRING)
-    CompressLevel compressLevel =CompressLevel.NONE;
+    CompressLevel compressLevel =CompressLevel.LOW;
 
 }
