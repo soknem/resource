@@ -33,4 +33,7 @@ public class File{
     @Enumerated(EnumType.STRING)
     FileType type = FileType.DEFAULT;
 
+    @Column(length = 4000)
+    private String blurData;
+
 }

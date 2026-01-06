@@ -57,14 +57,16 @@ public class FileServiceImpl implements FileService {
         String contentType = file.getContentType();
         String folderName = getValidFolder(file);
 
-        if (!contentType.startsWith("image/")) {
-            compress = false; // Only compress images
-        }
+
 
         String originalExtension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
         String extension = originalExtension; // Convert to JPG for better compression
 //        String extension = compress ? "jpg" : originalExtension;
 //        contentType = compress ? "image/jpeg" : contentType;
+
+        if (!contentType.startsWith("image/") || originalExtension.equals("webp")) {
+            compress = false; // Only compress images
+        }
 
         String newName;
         do {
@@ -126,7 +128,7 @@ public class FileServiceImpl implements FileService {
                 .type(type)
                 .uri(baseUri + imageEndpoint + "/view/" + newName + "." + extension)
                 .build();
-}
+    }
 
     private InputStream compressImage(InputStream inputStream, long[] outSize,double level,String extension) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
