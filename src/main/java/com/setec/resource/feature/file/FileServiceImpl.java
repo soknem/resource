@@ -400,4 +400,60 @@ public class FileServiceImpl implements FileService {
                 .build();
     }
 
+    @Override
+    public FileViewResponse getBackgroundSmooth(String type) {
+        // 1. Get random background metadata
+        File file = fileRepository.findOneRandomByType(type);
+        String objectPath = file.getFolder() + "/" + file.getFileName();
+
+        try {
+            // 2. Fetch from MinIO
+            InputStream originalStream = minioService.getFile(objectPath);
+
+            // 3. Process into Progressive JPEG
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Thumbnails.of(originalStream)
+                    .scale(1.0)
+                    .outputQuality(0.8) // High quality for background
+                    .outputFormat("jpg")
+                    // This is the key: Thumbnailator doesn't have a direct "progressive"
+                    // toggle easily exposed, but we can use standard Java ImageIO
+                    // if we want specific control, or rely on Thumbnails to re-encode.
+                    .toOutputStream(baos);
+
+            // Note: To guarantee Progressive encoding in Java, we wrap the output
+            byte[] imageBytes = convertToProgressive(baos.toByteArray());
+
+            return FileViewResponse.builder()
+                    .fileName(file.getFileName())
+                    .fileSize((long) imageBytes.length)
+                    .contentType("image/jpeg")
+                    .stream(new InputStreamResource(new ByteArrayInputStream(imageBytes)))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Smooth background failed: {}", e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to process smooth image");
+        }
+    }
+
+    // Helper method to ensure Progressive JPEG encoding
+    private byte[] convertToProgressive(byte[] imageData) throws IOException {
+        InputStream in = new ByteArrayInputStream(imageData);
+        var image = javax.imageio.ImageIO.read(in);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        var writer = javax.imageio.ImageIO.getImageWritersByFormatName("jpg").next();
+        var params = writer.getDefaultWriteParam();
+
+        // Set progressive mode
+        params.setProgressiveMode(javax.imageio.ImageWriteParam.MODE_DEFAULT);
+
+        writer.setOutput(javax.imageio.ImageIO.createImageOutputStream(out));
+        writer.write(null, new javax.imageio.IIOImage(image, null, null), params);
+        writer.dispose();
+
+        return out.toByteArray();
+    }
+
 }

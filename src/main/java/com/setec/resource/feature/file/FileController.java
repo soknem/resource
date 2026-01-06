@@ -125,4 +125,15 @@ public class FileController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + response.fileName() + "\"")
                 .body(response.stream());
     }
+
+    @GetMapping("/background/smooth")
+    public ResponseEntity<Resource> getBackgroundSmooth(@RequestParam(defaultValue = "DEFAULT") String type) {
+        var response = fileService.getBackgroundSmooth(type);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG) // Progressive is best as JPEG
+                .contentLength(response.fileSize())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + response.fileName() + "\"")
+                .body(response.stream());
+    }
 }

@@ -112,4 +112,6 @@ public interface FileService {
 
 
     FileViewResponse getBackground(String type);
+
+    FileViewResponse getBackgroundSmooth(String type);
 }
