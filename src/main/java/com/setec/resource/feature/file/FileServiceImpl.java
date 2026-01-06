@@ -414,7 +414,7 @@ public class FileServiceImpl implements FileService {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             Thumbnails.of(originalStream)
                     .scale(1.0)
-                    .outputQuality(0.8) // High quality for background
+                    //.outputQuality(0.8) // High quality for background
                     .outputFormat("jpg")
                     // This is the key: Thumbnailator doesn't have a direct "progressive"
                     // toggle easily exposed, but we can use standard Java ImageIO
