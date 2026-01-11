@@ -11,12 +11,17 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:8080","http://localhost:3000","http://34.80.194.243","https://supersurvey.live")
-                .allowedOrigins("https://superfile.supersurvey.live")
+                .allowedOrigins(
+                        "http://localhost:8080",
+                        "http://localhost:3000",
+                        "http://34.80.194.243",
+                        "https://supersurvey.live",
+                        "https://superfile.supersurvey.live")
+//                .allowedOrigins("https://superfile.supersurvey.live")
                 .allowedHeaders("*")
-                .exposedHeaders("Set-Cookie")
+//                .exposedHeaders("Set-Cookie")
                 .allowedMethods("GET", "POST", "PUT", "DELETE","PATCH", "OPTIONS")
-                .allowCredentials(true);
+                .allowCredentials(false);
     }
 
 }
