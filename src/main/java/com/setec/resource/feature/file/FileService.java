@@ -3,6 +3,7 @@ package com.setec.resource.feature.file;
 
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.FileType;
+import com.setec.resource.domain.ResizePreset;
 import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import org.springframework.core.io.Resource;
@@ -20,6 +21,8 @@ import java.util.List;
  * @since 1.0 (2024)
  */
 public interface FileService {
+
+    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset,int w,int h);
 
     FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type);
 

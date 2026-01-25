@@ -3,6 +3,7 @@ package com.setec.resource.feature.file;
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.domain.FileType;
+import com.setec.resource.domain.ResizePreset;
 import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
@@ -45,12 +46,14 @@ public class FileController {
     @PostMapping(value = "", consumes = "multipart/form-data")
     FileResponse uploadFile(@RequestPart MultipartFile file,
                             @RequestParam(defaultValue = "false") boolean compress,
-                            @RequestParam(defaultValue = "LOW")CompressLevel level,
-                            @RequestParam(defaultValue = "DEFAULT") FileType type
+                            @RequestParam(defaultValue = "LOW") CompressLevel level,
+                            @RequestParam(defaultValue = "DEFAULT") FileType type,
+                            @RequestParam(defaultValue = "ORIGINAL") ResizePreset resize,
+                            @RequestParam(defaultValue = "0") int w,
+                            @RequestParam(defaultValue = "0") int h
+    ) {
 
-                            ) {
-
-        return fileService.uploadSingleFile(file, compress,level,type);
+        return fileService.uploadSingleFile(file, compress, level, type, resize,w,h);
     }
 
 

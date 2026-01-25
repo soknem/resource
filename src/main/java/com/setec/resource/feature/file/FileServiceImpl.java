@@ -1,9 +1,9 @@
 package com.setec.resource.feature.file;
 
-
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.domain.FileType;
+import com.setec.resource.domain.ResizePreset;
 import com.setec.resource.feature.file.dto.*;
 import com.setec.resource.feature.minio.MinioService;
 import com.setec.resource.util.FileCompressUtil;
@@ -22,6 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -32,19 +37,15 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-//@RefreshScope
 public class FileServiceImpl implements FileService {
 
     private final MinioService minioService;
-
     private final FileRepository fileRepository;
-
     private final MinioClient minioClient;
 
     @Value("${media.base-uri}")
     private String baseUri;
 
-    //endpoint that handle manage medias
     @Value("${media.image-end-point}")
     private String imageEndpoint;
 
@@ -52,408 +53,262 @@ public class FileServiceImpl implements FileService {
     String bucketName;
 
     @Override
-    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type) {
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset,int w,int h) {
 
         String contentType = file.getContentType();
         String folderName = getValidFolder(file);
-
-
-
         String originalExtension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
-        String extension = originalExtension; // Convert to JPG for better compression
-//        String extension = compress ? "jpg" : originalExtension;
-//        contentType = compress ? "image/jpeg" : contentType;
 
-        if (!contentType.startsWith("image/") || originalExtension.equals("webp")) {
-            compress = false; // Only compress images
-        }
+        // Only process images. Note: Thumbnails does not support WebP natively without extra plugins.
+        boolean isImage = contentType != null && contentType.startsWith("image/");
+        boolean canProcess = isImage && !originalExtension.equalsIgnoreCase("webp");
 
         String newName;
         do {
             newName = UUID.randomUUID().toString();
-        } while (fileRepository.existsByFileName(newName + "." + extension));
+        } while (fileRepository.existsByFileName(newName + "." + originalExtension));
 
-        String objectName = folderName + "/" + newName + "." + extension;
-
+        String objectName = folderName + "/" + newName + "." + originalExtension;
         long size = file.getSize();
         InputStream inputStream = null;
+
         try {
             inputStream = file.getInputStream();
-            if (compress) {
-                double compressLevel = FileCompressUtil.getCompressValue(level);
-                long[] compressedSize = new long[1];
-                InputStream compressedStream = compressImage(inputStream, compressedSize,compressLevel,extension);
-                size = compressedSize[0];
-                inputStream.close();
-                inputStream = compressedStream;
+
+            // 1. BETTER WAY: Single pass processing for Resize AND Compression
+            if (canProcess && (compress || (preset != null && preset != ResizePreset.ORIGINAL))) {
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                Thumbnails.Builder<? extends InputStream> builder = Thumbnails.of(inputStream);
+
+                // Handle Resizing
+                if (preset != null && preset != ResizePreset.ORIGINAL) {
+                    if(h>0&&w>0){
+                        builder.size(w, h).keepAspectRatio(true);
+                    }else{
+                        builder.size(preset.getWidth(), preset.getHeight()).keepAspectRatio(true);
+                    }
+
+                } else {
+                    builder.scale(1.0);
+                }
+
+                // Handle Compression
+                if (compress) {
+                    double quality = FileCompressUtil.getCompressValue(level);
+                    builder.outputQuality(quality);
+                }
+
+                builder.toOutputStream(baos);
+
+                byte[] processedBytes = baos.toByteArray();
+                size = processedBytes.length;
+                inputStream.close(); // Close original
+                inputStream = new ByteArrayInputStream(processedBytes); // Replace with processed
             }
+
+            // 2. Upload to Minio
             minioService.uploadFile(inputStream, size, contentType, objectName);
+
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            log.error("Upload failed for file {}: {}", originalExtension, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "File processing error");
         } finally {
             if (inputStream != null) {
-                try {
-                    inputStream.close();
-                } catch (IOException ignored) {
-                    // Ignore close errors
-                }
+                try { inputStream.close(); } catch (IOException ignored) {}
             }
         }
 
-        //create new object that store file metadata
+        // 3. Store Metadata
         File fileObject = new File();
-
-        //set all field
-        fileObject.setFileName(newName + "." + extension);
-
+        fileObject.setFileName(newName + "." + originalExtension);
         fileObject.setFileSize(size);
-
         fileObject.setContentType(contentType);
-
         fileObject.setFolder(folderName);
-
-        fileObject.setExtension(extension);
-
+        fileObject.setExtension(originalExtension);
         fileObject.setType(type);
-
-        //save file metadata to database
         fileRepository.save(fileObject);
 
-        //response to DTO
         return FileResponse.builder()
-                .name(newName + "." + extension)
+                .name(newName + "." + originalExtension)
                 .contentType(contentType)
-                .extension(extension)
+                .extension(originalExtension)
                 .size(size)
                 .type(type)
-                .uri(baseUri + imageEndpoint + "/view/" + newName + "." + extension)
+                .uri(baseUri + imageEndpoint + "/view/" + newName + "." + originalExtension)
                 .build();
     }
 
-    private InputStream compressImage(InputStream inputStream, long[] outSize,double level,String extension) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        Thumbnails.of(inputStream)
-                .scale(1.0) // No resize, just compress
-                .outputQuality(level) // 80% quality; adjust 0.0-1.0 (lower = more compression)
-                .outputFormat("jpg") // Force JPG for best size reduction
-                .toOutputStream(baos);
-
-        outSize[0] = baos.size();
-        return new ByteArrayInputStream(baos.toByteArray());
+    @Override
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type) {
+        return uploadSingleFile(file, compress, level, type, ResizePreset.ORIGINAL,0,0);
     }
 
     @Override
     public FileResponse uploadSingleFile(MultipartFile file) {
-        return null;
+        return uploadSingleFile(file, false, CompressLevel.LOW, FileType.DEFAULT, ResizePreset.ORIGINAL,0,0);
     }
 
     @Override
     public List<FileResponse> loadAllFiles() {
-
-        // Fetch all images from the repository
-        List<File> files = fileRepository.findAll();
-
-        // Map each File entity to an FileResponse DTO
-        List<FileResponse> responses = new ArrayList<>();
-        for (File file : files) {
-            FileResponse response = FileResponse.builder()
-                    .name(file.getFileName())
-                    .contentType(file.getContentType())
-                    .extension(file.getExtension())
-                    .size(file.getFileSize())
-                    .type(file.getType())
-                    .uri(baseUri + imageEndpoint + "/view/" + file.getFileName())
-                    .build();
-            responses.add(response);
-        }
-
-        return responses;
+        return fileRepository.findAll().stream().map(file -> FileResponse.builder()
+                .name(file.getFileName())
+                .contentType(file.getContentType())
+                .extension(file.getExtension())
+                .size(file.getFileSize())
+                .type(file.getType())
+                .uri(baseUri + imageEndpoint + "/view/" + file.getFileName())
+                .build()).toList();
     }
 
     @Override
     public void delete(List<FileDeleteRequest> fileDeleteRequests) {
-        for(FileDeleteRequest fileDeleteRequest:fileDeleteRequests){
-            deleteFileByName(fileDeleteRequest.fileName());
-        }
+        fileDeleteRequests.forEach(req -> deleteFileByName(req.fileName()));
     }
 
     @Override
     public List<FileNameResponse> getAllFileNames() {
-
         return fileRepository.findAllFileNames();
     }
 
     @Override
     public FileResponse loadFileByName(String fileName) {
-
-        try {
-            String contentType = getContentType(fileName);
-
-            String extension = MediaUtil.extractExtension(fileName);
-
-            return FileResponse.builder()
-                    .name(fileName)
-                    .contentType(contentType)
-                    .extension(extension)
-                    .uri(baseUri + imageEndpoint + "/view/" + fileName)
-                    .build();
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        File file = fileRepository.findByFileName(fileName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return FileResponse.builder()
+                .name(fileName)
+                .contentType(file.getContentType())
+                .extension(file.getExtension())
+                .uri(baseUri + imageEndpoint + "/view/" + fileName)
+                .build();
     }
-
 
     @Override
     public void deleteFileByName(String fileName) {
-
-        File file = fileRepository.findByFileName(fileName).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,String.format("file = %s has not been found",fileName)));
-
+        File file = fileRepository.findByFileName(fileName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         try {
-
-            String folderName = file.getFolder();
-
-            String objectName = folderName + "/" + fileName;
-
+            minioService.deleteFile(file.getFolder() + "/" + fileName);
             fileRepository.delete(file);
-
-            minioService.deleteFile(objectName);
-
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Delete failed");
         }
     }
-
 
     @Override
     public Resource downloadFileByName(String mediaName) {
-
         try {
-            String contentType = getContentType(mediaName);
-
-            String folderName = contentType.split("/")[0];
-
-            String objectName = folderName + "/" + mediaName;
-
-            InputStream inputStream = minioService.getFile(objectName);
-
-            Path tempFile = Files.createTempFile("minio", mediaName);
-
+            File file = fileRepository.findByFileName(mediaName)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            InputStream inputStream = minioService.getFile(file.getFolder() + "/" + mediaName);
+            Path tempFile = Files.createTempFile("minio-down-", mediaName);
             Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
-
             return new UrlResource(tempFile.toUri());
-
-        } catch (MalformedURLException e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Media has not been found!");
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Download failed");
         }
-    }
-
-
-    private String getContentType(String fileName) {
-        File fileObject = fileRepository.findByFileName(fileName).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("file = %s has not been found", fileName)));
-        return fileObject.getContentType();
-    }
-
-    private static String getValidFolder(MultipartFile file) {
-
-        String contentType = file.getContentType();
-
-        if (contentType == null || !((contentType.startsWith("video/") || contentType.startsWith("image/") || contentType.equals("application/pdf")))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported file type.");
-        }
-
-        return contentType.split("/")[0];
     }
 
     @Override
     public Resource viewFileRange(String fileName, String rangeHeader) {
         File fileMetadata = fileRepository.findByFileName(fileName)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
         long fileSize = fileMetadata.getFileSize();
-        String objectPath = fileMetadata.getFolder() + "/" + fileMetadata.getFileName();
-
-        // Default values for the whole file
         long start = 0;
         long end = fileSize - 1;
 
-        // Parse Range Header: "bytes=start-end"
         if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
             String[] ranges = rangeHeader.substring(6).split("-");
             try {
                 start = Long.parseLong(ranges[0]);
-                if (ranges.length > 1 && !ranges[1].isEmpty()) {
-                    end = Long.parseLong(ranges[1]);
-                }
+                if (ranges.length > 1 && !ranges[1].isEmpty()) end = Long.parseLong(ranges[1]);
             } catch (NumberFormatException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid range format");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
             }
         }
-
-        if (start > end || start >= fileSize) {
-            throw new ResponseStatusException(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
-        }
-
-        long contentLength = (end - start) + 1;
-
         try {
-            // Fetch only the requested range from MinIO
-//            InputStream inputStream = minioClient.getObject(
-//                    GetObjectArgs.builder()
-//                            .bucket(bucketName)
-//                            .object(objectPath)
-//                            .offset(start)
-//                            .length(contentLength)
-//                            .build()
-//            );
-//            return new InputStreamResource(inputStream);
-            InputStream inputStream = minioService.getFile(objectPath, start, contentLength);
-            return new InputStreamResource(inputStream);
+            return new InputStreamResource(minioService.getFile(fileMetadata.getFolder() + "/" + fileName, start, (end - start) + 1));
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "MinIO error", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Range view failed");
         }
     }
 
     @Override
     public FileStreamResponse getFileStream(String fileName, String rangeHeader) {
         File fileMetadata = fileRepository.findByFileName(fileName)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
-
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         long fileSize = fileMetadata.getFileSize();
-        String objectPath = fileMetadata.getFolder() + "/" + fileMetadata.getFileName();
+        long start = 0, end = fileSize - 1;
+        boolean isPartial = rangeHeader != null;
 
-        long start = 0;
-        long end = fileSize - 1;
-        boolean isPartial = false;
-
-        // Parse Range Header
-        if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
-            isPartial = true;
+        if (isPartial && rangeHeader.startsWith("bytes=")) {
             String[] ranges = rangeHeader.substring(6).split("-");
-            try {
-                start = Long.parseLong(ranges[0]);
-                if (ranges.length > 1 && !ranges[1].isEmpty()) {
-                    end = Math.min(Long.parseLong(ranges[1]), fileSize - 1);
-                }
-            } catch (NumberFormatException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Range header");
-            }
-        }
-
-        if (start > end || start >= fileSize) {
-            throw new ResponseStatusException(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
+            start = Long.parseLong(ranges[0]);
+            if (ranges.length > 1 && !ranges[1].isEmpty()) end = Math.min(Long.parseLong(ranges[1]), fileSize - 1);
         }
 
         try {
-            long contentLength = (end - start) + 1;
-            // Call your MinIO service range method
-            InputStream inputStream = minioService.getFile(objectPath, start, contentLength);
-            Resource resource = new InputStreamResource(inputStream);
-
-            return new FileStreamResponse(
-                    resource,
-                    fileMetadata.getContentType(),
-                    fileSize,
-                    start,
-                    end,
-                    isPartial
-            );
+            InputStream inputStream = minioService.getFile(fileMetadata.getFolder() + "/" + fileName, start, (end - start) + 1);
+            return new FileStreamResponse(new InputStreamResource(inputStream), fileMetadata.getContentType(), fileSize, start, end, isPartial);
         } catch (Exception e) {
-            log.error("Error streaming file: {}", e.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Streaming failed");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Stream failed");
         }
     }
 
     @Override
     public FileViewResponse getBackground(String type) {
-
-        File file= fileRepository.findOneRandomByType(type);
-
-        Path path = Path.of(file.getFileName());
-        String objectPath = file.getFolder() + "/" + path;
-
-
-        // Fetch the object from MinIO
-        GetObjectArgs getObjectArgs = GetObjectArgs.builder()
-                .bucket(bucketName)
-                .object(objectPath)
-                .build();
-
-        InputStream inputStream;
+        File file = fileRepository.findOneRandomByType(type);
         try {
-            inputStream = minioClient.getObject(getObjectArgs);
+            InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucketName).object(file.getFolder() + "/" + file.getFileName()).build());
+            return FileViewResponse.builder()
+                    .fileName(file.getFileName())
+                    .fileSize(file.getFileSize())
+                    .contentType(file.getContentType())
+                    .stream(new InputStreamResource(inputStream))
+                    .build();
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error fetching file from storage", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Background fetch failed");
         }
-
-        // Wrap the InputStream in an InputStreamResource
-        InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-
-        // Construct and return the response
-        return FileViewResponse.builder()
-                .fileName(file.getFileName())
-                .fileSize(file.getFileSize())
-                .contentType(file.getContentType())
-                .stream(inputStreamResource)
-                .build();
     }
 
     @Override
     public FileViewResponse getBackgroundSmooth(String type) {
-        // 1. Get random background metadata
         File file = fileRepository.findOneRandomByType(type);
-        String objectPath = file.getFolder() + "/" + file.getFileName();
-
         try {
-            // 2. Fetch from MinIO
-            InputStream originalStream = minioService.getFile(objectPath);
-
-            // 3. Process into Progressive JPEG
+            InputStream originalStream = minioService.getFile(file.getFolder() + "/" + file.getFileName());
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            Thumbnails.of(originalStream)
-                    .scale(1.0)
-                    //.outputQuality(0.8) // High quality for background
-                    .outputFormat("jpg")
-                    // This is the key: Thumbnailator doesn't have a direct "progressive"
-                    // toggle easily exposed, but we can use standard Java ImageIO
-                    // if we want specific control, or rely on Thumbnails to re-encode.
-                    .toOutputStream(baos);
-
-            // Note: To guarantee Progressive encoding in Java, we wrap the output
-            byte[] imageBytes = convertToProgressive(baos.toByteArray());
-
+            Thumbnails.of(originalStream).scale(1.0).outputFormat("jpg").toOutputStream(baos);
+            byte[] progressiveBytes = convertToProgressive(baos.toByteArray());
             return FileViewResponse.builder()
                     .fileName(file.getFileName())
-                    .fileSize((long) imageBytes.length)
+                    .fileSize((long) progressiveBytes.length)
                     .contentType("image/jpeg")
-                    .stream(new InputStreamResource(new ByteArrayInputStream(imageBytes)))
+                    .stream(new InputStreamResource(new ByteArrayInputStream(progressiveBytes)))
                     .build();
-
         } catch (Exception e) {
-            log.error("Smooth background failed: {}", e.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to process smooth image");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Smooth process failed");
         }
     }
 
-    // Helper method to ensure Progressive JPEG encoding
     private byte[] convertToProgressive(byte[] imageData) throws IOException {
-        InputStream in = new ByteArrayInputStream(imageData);
-        var image = javax.imageio.ImageIO.read(in);
-
+        var image = ImageIO.read(new ByteArrayInputStream(imageData));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        var writer = javax.imageio.ImageIO.getImageWritersByFormatName("jpg").next();
-        var params = writer.getDefaultWriteParam();
-
-        // Set progressive mode
-        params.setProgressiveMode(javax.imageio.ImageWriteParam.MODE_DEFAULT);
-
-        writer.setOutput(javax.imageio.ImageIO.createImageOutputStream(out));
-        writer.write(null, new javax.imageio.IIOImage(image, null, null), params);
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+        ImageWriteParam params = writer.getDefaultWriteParam();
+        params.setProgressiveMode(ImageWriteParam.MODE_DEFAULT);
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(image, null, null), params);
+        }
         writer.dispose();
-
         return out.toByteArray();
     }
 
+    private static String getValidFolder(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !(contentType.startsWith("video/") || contentType.startsWith("image/") || contentType.equals("application/pdf"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported file type");
+        }
+        return contentType.split("/")[0];
+    }
 }
