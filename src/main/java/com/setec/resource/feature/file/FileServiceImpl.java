@@ -84,7 +84,7 @@ public class FileServiceImpl implements FileService {
                 // Handle Resizing
                 if (preset != ResizePreset.ORIGINAL) {
                     if(preset == ResizePreset.CUSTOM){
-                        if(h<=0||w<=0){
+                        if(h<=0||w<=0||w>8192||h>8192){
                             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"W and H must be >0");
                         }
                         builder.size(w, h).keepAspectRatio(true);

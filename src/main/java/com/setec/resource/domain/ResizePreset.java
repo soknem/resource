@@ -13,7 +13,8 @@ public enum ResizePreset {
     HD(1280, 720),
     FHD(1920, 1080),
     QHD(2560, 1440),
-    UHD(4096, 2160);
+    UHD(4096, 2160),
+    UHD_2(8192, 4320);
 
     private final int width;
     private final int height;
