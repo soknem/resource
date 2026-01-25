@@ -82,10 +82,13 @@ public class FileServiceImpl implements FileService {
                 Thumbnails.Builder<? extends InputStream> builder = Thumbnails.of(inputStream);
 
                 // Handle Resizing
-                if (preset != null && preset != ResizePreset.ORIGINAL) {
-                    if(h>0&&w>0){
+                if (preset != ResizePreset.ORIGINAL) {
+                    if(preset == ResizePreset.CUSTOM){
+                        if(h<=0||w<=0){
+                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"W and H must be >0");
+                        }
                         builder.size(w, h).keepAspectRatio(true);
-                    }else{
+                    }else {
                         builder.size(preset.getWidth(), preset.getHeight()).keepAspectRatio(true);
                     }
 
