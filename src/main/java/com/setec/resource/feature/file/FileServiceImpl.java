@@ -53,103 +53,107 @@ public class FileServiceImpl implements FileService {
     String bucketName;
 
     @Override
-    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset,int w,int h) {
+    public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset, int w, int h, String outputExtension) {
 
-        String contentType = file.getContentType();
+        // 1. Initial Setup
+        String originalContentType = file.getContentType();
         String folderName = getValidFolder(file);
         String originalExtension = MediaUtil.extractExtension(Objects.requireNonNull(file.getOriginalFilename()));
 
-        // Only process images. Note: Thumbnails does not support WebP natively without extra plugins.
-        boolean isImage = contentType != null && contentType.startsWith("image/");
+        boolean isImage = originalContentType != null && originalContentType.startsWith("image/");
         boolean canProcess = isImage && !originalExtension.equalsIgnoreCase("webp");
+
+        // Fix: Handle null outputExtension safely
+        boolean isChangingFormat = canProcess && outputExtension != null && !outputExtension.equalsIgnoreCase("DEFAULT");
+        String extension = isChangingFormat ? outputExtension.toLowerCase() : originalExtension;
+
+        // Fix: Determine the final Content Type
+        String finalContentType = isChangingFormat ? "image/" + extension.replace("jpg", "jpeg") : originalContentType;
 
         String newName;
         do {
             newName = UUID.randomUUID().toString();
-        } while (fileRepository.existsByFileName(newName + "." + originalExtension));
+        } while (fileRepository.existsByFileName(newName + "." + extension));
 
-        String objectName = folderName + "/" + newName + "." + originalExtension;
+        String objectName = folderName + "/" + newName + "." + extension;
         long size = file.getSize();
         InputStream inputStream = null;
 
         try {
             inputStream = file.getInputStream();
 
-            // 1. BETTER WAY: Single pass processing for Resize AND Compression
             if (canProcess && (compress || (preset != null && preset != ResizePreset.ORIGINAL))) {
-
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 Thumbnails.Builder<? extends InputStream> builder = Thumbnails.of(inputStream);
 
-                // Handle Resizing
+                // Resizing Logic
                 if (preset != ResizePreset.ORIGINAL) {
-                    if(preset == ResizePreset.CUSTOM){
-                        if(h<=0||w<=0||w>8192||h>8192){
-                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"W and H must be >0");
-                        }
+                    if (preset == ResizePreset.CUSTOM) {
+                        if (h <= 0 || w <= 0 || w > 8192 || h > 8192) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "W and H must be >0");
                         builder.size(w, h).keepAspectRatio(true);
-                    }else {
+                    } else {
                         builder.size(preset.getWidth(), preset.getHeight()).keepAspectRatio(true);
                     }
-
                 } else {
                     builder.scale(1.0);
                 }
 
-                // Handle Compression
+                // Compression & Format Logic
                 if (compress) {
                     double quality = FileCompressUtil.getCompressValue(level);
                     builder.outputQuality(quality);
                 }
 
-                builder.toOutputStream(baos);
+                // Fix: Apply format change if requested
+                if (isChangingFormat) {
+                    builder.outputFormat(extension);
+                }
 
+                builder.toOutputStream(baos);
                 byte[] processedBytes = baos.toByteArray();
                 size = processedBytes.length;
-                inputStream.close(); // Close original
-                inputStream = new ByteArrayInputStream(processedBytes); // Replace with processed
+                inputStream.close();
+                inputStream = new ByteArrayInputStream(processedBytes);
             }
 
-            // 2. Upload to Minio
-            minioService.uploadFile(inputStream, size, contentType, objectName);
+            // 2. Upload with CORRECT contentType
+            minioService.uploadFile(inputStream, size, finalContentType, objectName);
 
         } catch (Exception e) {
-            log.error("Upload failed for file {}: {}", originalExtension, e.getMessage());
+            log.error("Upload failed: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "File processing error");
         } finally {
-            if (inputStream != null) {
-                try { inputStream.close(); } catch (IOException ignored) {}
-            }
+            if (inputStream != null) { try { inputStream.close(); } catch (IOException ignored) {} }
         }
 
-        // 3. Store Metadata
+        // 3. Store Metadata with CORRECT extension and contentType
         File fileObject = new File();
-        fileObject.setFileName(newName + "." + originalExtension);
+        fileObject.setFileName(newName + "." + extension);
         fileObject.setFileSize(size);
-        fileObject.setContentType(contentType);
+        fileObject.setContentType(finalContentType); // Use finalContentType
         fileObject.setFolder(folderName);
-        fileObject.setExtension(originalExtension);
+        fileObject.setExtension(extension);
         fileObject.setType(type);
         fileRepository.save(fileObject);
 
         return FileResponse.builder()
-                .name(newName + "." + originalExtension)
-                .contentType(contentType)
-                .extension(originalExtension)
+                .name(newName + "." + extension)
+                .contentType(finalContentType)
+                .extension(extension)
                 .size(size)
                 .type(type)
-                .uri(baseUri + imageEndpoint + "/view/" + newName + "." + originalExtension)
+                .uri(baseUri + imageEndpoint + "/view/" + newName + "." + extension)
                 .build();
     }
 
     @Override
     public FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type) {
-        return uploadSingleFile(file, compress, level, type, ResizePreset.ORIGINAL,0,0);
+        return uploadSingleFile(file, compress, level, type, ResizePreset.ORIGINAL,0,0,null);
     }
 
     @Override
     public FileResponse uploadSingleFile(MultipartFile file) {
-        return uploadSingleFile(file, false, CompressLevel.LOW, FileType.DEFAULT, ResizePreset.ORIGINAL,0,0);
+        return uploadSingleFile(file, false, CompressLevel.LOW, FileType.DEFAULT, ResizePreset.ORIGINAL,0,0,null);
     }
 
     @Override

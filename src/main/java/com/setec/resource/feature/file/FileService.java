@@ -22,7 +22,7 @@ import java.util.List;
  */
 public interface FileService {
 
-    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset,int w,int h);
+    FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type, ResizePreset preset,int w,int h,String outputExtension);
 
     FileResponse uploadSingleFile(MultipartFile file, boolean compress, CompressLevel level, FileType type);
 

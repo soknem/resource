@@ -50,10 +50,11 @@ public class FileController {
                             @RequestParam(defaultValue = "DEFAULT") FileType type,
                             @RequestParam(defaultValue = "ORIGINAL") ResizePreset resize,
                             @RequestParam(defaultValue = "0") int w,
-                            @RequestParam(defaultValue = "0") int h
+                            @RequestParam(defaultValue = "0") int h,
+                            @RequestParam(defaultValue = "DEFAULT") String outputExtension
     ) {
 
-        return fileService.uploadSingleFile(file, compress, level, type, resize,w,h);
+        return fileService.uploadSingleFile(file, compress, level, type, resize,w,h,outputExtension);
     }
 
 
