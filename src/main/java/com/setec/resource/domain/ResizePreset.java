@@ -9,6 +9,8 @@ import lombok.Getter;
 public enum ResizePreset {
     CUSTOM(-1,-1),
     ORIGINAL(0, 0),
+    ICON(250, 250),
+    AVATAR(400, 400),
     SD(720, 480),
     HD(1280, 720),
     FHD(1920, 1080),
