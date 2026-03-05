@@ -5,13 +5,14 @@ import com.setec.resource.domain.File;
 import com.setec.resource.feature.file.dto.FileNameResponse;
 import com.setec.resource.feature.file.dto.FileResponse;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface FileRepository extends JpaRepository<File, Long>{
+public interface FileRepository extends JpaRepository<File, Long>,JpaSpecificationExecutor<File> {
 
     Optional<File> findByFileName(String fileName);
 

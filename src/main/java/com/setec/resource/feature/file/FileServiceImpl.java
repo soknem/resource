@@ -1,5 +1,6 @@
 package com.setec.resource.feature.file;
 
+import com.setec.resource.base.BaseSpecification;
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.domain.FileType;
@@ -8,6 +9,8 @@ import com.setec.resource.feature.file.dto.*;
 import com.setec.resource.feature.minio.MinioService;
 import com.setec.resource.util.FileCompressUtil;
 import com.setec.resource.util.MediaUtil;
+import com.setec.resource.util.SortUtils;
+import com.setec.resource.util.SpecUtils;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +20,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -42,6 +50,7 @@ public class FileServiceImpl implements FileService {
     private final MinioService minioService;
     private final FileRepository fileRepository;
     private final MinioClient minioClient;
+    private final BaseSpecification<File> baseSpecification;
 
     @Value("${media.base-uri}")
     private String baseUri;
@@ -157,8 +166,38 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public List<FileResponse> loadAllFiles() {
-        return fileRepository.findAll().stream().map(file -> FileResponse.builder()
+    public List<FileResponse> loadAllFiles(BaseSpecification.FilterDto filterBody, WebRequest request, String globalOperator, String sortBy,Sort.Direction orderBy, int pageNumber, int pageSize) {
+
+        SortUtils.validateSortBy(File.class, sortBy);
+
+        // 2. Define Mandatory Conditions (Ownership)
+//        Map<String, Object> moreSpec = Map.ofEntries(
+//                Map.entry("creator.email", userDetails.getUsername())
+//        );
+
+        // 3. Use the Util to get the final specification
+        Specification<File> finalSpec = SpecUtils.buildFinalSpec(
+                baseSpecification,
+                filterBody,
+                request,
+                globalOperator,
+                null
+        );
+
+        if (pageSize == 0) {
+            pageSize = (int) fileRepository.count(finalSpec);
+        }
+
+        //create sort order
+        Sort sortById = Sort.by(orderBy, sortBy);
+
+        //create pagination with current pageNumber and pageSize of pageNumber
+        PageRequest pageRequest = PageRequest.of(pageNumber, pageSize, sortById);
+
+        //find all subject in database
+        Page<File> files = fileRepository.findAll(finalSpec, pageRequest);
+
+        return files.stream().map(file -> FileResponse.builder()
                 .name(file.getFileName())
                 .contentType(file.getContentType())
                 .extension(file.getExtension())

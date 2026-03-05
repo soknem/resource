@@ -1,5 +1,6 @@
 package com.setec.resource.feature.file;
 
+import com.setec.resource.base.BaseSpecification;
 import com.setec.resource.domain.CompressLevel;
 import com.setec.resource.domain.File;
 import com.setec.resource.domain.FileType;
@@ -9,11 +10,13 @@ import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -60,10 +63,18 @@ public class FileController {
 
     @GetMapping()
 //    @PreAuthorize("hasAnyAuthority('file:read')")
-    List<FileResponse> loadAllFile() {
-        return fileService.loadAllFiles();
-    }
+    List<FileResponse> loadAllFile(
+            WebRequest request,
+            @RequestParam(value = "gop", defaultValue = "AND") String globalOperator,
+            @RequestParam(value = "sortBy", defaultValue = "createdDate") String sortBy,
+            @RequestParam(value = "orderBy", defaultValue = "ASC") Sort.Direction orderBy,
+            @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+            @RequestParam(value = "pageSize", defaultValue = "25") int pageSize,
+            @RequestBody(required = false) BaseSpecification.FilterDto filterBody
 
+    ) {
+        return fileService.loadAllFiles(filterBody,request,globalOperator,sortBy,orderBy,pageNumber,pageSize);
+    }
 
     @GetMapping("/{fileName}")
 //    @PreAuthorize("hasAnyAuthority('file:read')")
