@@ -61,7 +61,7 @@ public class FileController {
     }
 
 
-    @GetMapping()
+    @PostMapping()
 //    @PreAuthorize("hasAnyAuthority('file:read')")
     List<FileResponse> loadAllFile(
             WebRequest request,
