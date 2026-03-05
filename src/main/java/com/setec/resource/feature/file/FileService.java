@@ -8,6 +8,7 @@ import com.setec.resource.domain.ResizePreset;
 import com.setec.resource.feature.file.dto.*;
 import io.minio.errors.*;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,7 +47,7 @@ public interface FileService {
      * @author Pov soknem
      * @since 1.0 (2024)
      */
-    List<FileResponse> loadAllFiles(BaseSpecification.FilterDto filterBody, WebRequest request, String globalOperator, String sortBy, Sort.Direction orderBy, int pageNumber, int pageSize);
+    Page<FileResponse> loadAllFiles(BaseSpecification.FilterDto filterBody, WebRequest request, String globalOperator, String sortBy, Sort.Direction orderBy, int pageNumber, int pageSize);
 
     void delete(List<FileDeleteRequest> fileDeleteRequests);
 

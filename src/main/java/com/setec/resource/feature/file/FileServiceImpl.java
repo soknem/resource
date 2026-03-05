@@ -166,7 +166,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public List<FileResponse> loadAllFiles(BaseSpecification.FilterDto filterBody, WebRequest request, String globalOperator, String sortBy,Sort.Direction orderBy, int pageNumber, int pageSize) {
+    public Page<FileResponse> loadAllFiles(BaseSpecification.FilterDto filterBody, WebRequest request, String globalOperator, String sortBy,Sort.Direction orderBy, int pageNumber, int pageSize) {
 
         SortUtils.validateSortBy(File.class, sortBy);
 
@@ -197,14 +197,14 @@ public class FileServiceImpl implements FileService {
         //find all subject in database
         Page<File> files = fileRepository.findAll(finalSpec, pageRequest);
 
-        return files.stream().map(file -> FileResponse.builder()
+        return files.map(file -> FileResponse.builder()
                 .name(file.getFileName())
                 .contentType(file.getContentType())
                 .extension(file.getExtension())
                 .size(file.getFileSize())
                 .type(file.getType())
                 .uri(baseUri + imageEndpoint + "/view/" + file.getFileName())
-                .build()).toList();
+                .build());
     }
 
     @Override

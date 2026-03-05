@@ -10,6 +10,7 @@ import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -63,7 +64,7 @@ public class FileController {
 
     @PostMapping()
 //    @PreAuthorize("hasAnyAuthority('file:read')")
-    List<FileResponse> loadAllFile(
+    Page<FileResponse> loadAllFile(
             WebRequest request,
             @RequestParam(value = "gop", defaultValue = "AND") String globalOperator,
             @RequestParam(value = "sortBy", defaultValue = "type") String sortBy,
