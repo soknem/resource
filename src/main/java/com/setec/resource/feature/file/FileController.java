@@ -66,7 +66,7 @@ public class FileController {
     List<FileResponse> loadAllFile(
             WebRequest request,
             @RequestParam(value = "gop", defaultValue = "AND") String globalOperator,
-            @RequestParam(value = "sortBy", defaultValue = "createdDate") String sortBy,
+            @RequestParam(value = "sortBy", defaultValue = "type") String sortBy,
             @RequestParam(value = "orderBy", defaultValue = "ASC") Sort.Direction orderBy,
             @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
             @RequestParam(value = "pageSize", defaultValue = "25") int pageSize,
