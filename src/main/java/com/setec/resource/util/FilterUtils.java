@@ -26,7 +26,7 @@ public class FilterUtils {
     }
 
     public enum Operation {
-        EQUAL, LIKE, IN, GREATER_THAN, LESS_THAN, BETWEEN;
+        EQUAL, LIKE, IN, GREATER_THAN, LESS_THAN, BETWEEN ,   NOT_EQUAL, NOT_LIKE, NOT_IN;;
 
         public static Operation fromString(String operation) {
             try {
@@ -122,9 +122,17 @@ public class FilterUtils {
 
             return BaseSpecification.SpecsDto.Operation.LIKE;
 
+        } else if (paramName.endsWith("_nlike")) {
+
+            return BaseSpecification.SpecsDto.Operation.NOT_LIKE;
+
         } else if (paramName.endsWith("_in")) {
 
             return BaseSpecification.SpecsDto.Operation.IN;
+
+        } else if (paramName.endsWith("_nin")) {
+
+            return BaseSpecification.SpecsDto.Operation.NOT_IN;
 
         } else if (paramName.endsWith("_gt")) {
 
@@ -138,10 +146,17 @@ public class FilterUtils {
 
             return BaseSpecification.SpecsDto.Operation.BETWEEN;
 
+        } else if (paramName.endsWith("_ne")) {
+
+            return BaseSpecification.SpecsDto.Operation.NOT_EQUAL;
+
         } else {
+
             return BaseSpecification.SpecsDto.Operation.EQUAL;
+
         }
     }
+
 
     private static String extractColumnName(String paramName) {
 
@@ -149,9 +164,17 @@ public class FilterUtils {
 
             return paramName.substring(0, paramName.length() - 5);
 
+        } else if (paramName.endsWith("_nlike")) {
+
+            return paramName.substring(0, paramName.length() - 6);
+
         } else if (paramName.endsWith("_in")) {
 
             return paramName.substring(0, paramName.length() - 3);
+
+        } else if (paramName.endsWith("_nin")) {
+
+            return paramName.substring(0, paramName.length() - 4);
 
         } else if (paramName.endsWith("_gt")) {
 
@@ -165,10 +188,17 @@ public class FilterUtils {
 
             return paramName.substring(0, paramName.length() - 8);
 
+        } else if (paramName.endsWith("_ne")) {
+
+            return paramName.substring(0, paramName.length() - 3);
+
         } else {
+
             return paramName;
+
         }
     }
+
 
     private static String[] extractJoinTable(String[] parts) {
 

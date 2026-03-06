@@ -110,6 +110,14 @@ public class BaseSpecification<T> {
                     return createLessThanPredicate(from, criteriaBuilder, specs, fieldType);
                 case BETWEEN:
                     return createBetweenPredicate(from, criteriaBuilder, specs, fieldType);
+                case NOT_EQUAL:
+                    return createNotEqualPredicate(from, criteriaBuilder, specs, fieldType);
+
+                case NOT_LIKE:
+                    return createNotLikePredicate(from, criteriaBuilder, specs, fieldType);
+
+                case NOT_IN:
+                    return createNotInPredicate(from, criteriaBuilder, specs, fieldType);
                 default:
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported operation: " + specs.getOperation());
             }
@@ -213,6 +221,72 @@ public class BaseSpecification<T> {
         }
     }
 
+    private Predicate createNotEqualPredicate(From<?, ?> from,
+                                              CriteriaBuilder criteriaBuilder,
+                                              SpecsDto specs,
+                                              Class<?> fieldType) {
+
+        if (fieldType == String.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()), specs.getValue());
+
+        } else if (fieldType == Integer.class || fieldType == int.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    Integer.parseInt(specs.getValue()));
+
+        } else if (fieldType == Double.class || fieldType == double.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    Double.parseDouble(specs.getValue()));
+
+        } else if (fieldType == Boolean.class || fieldType == boolean.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    Boolean.parseBoolean(specs.getValue()));
+
+        } else if (fieldType == LocalDate.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    LocalDate.parse(specs.getValue()));
+
+        } else if (fieldType == LocalTime.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    LocalTime.parse(specs.getValue()));
+
+        } else if (fieldType == LocalDateTime.class) {
+            return criteriaBuilder.notEqual(from.get(specs.getColumn()),
+                    LocalDateTime.parse(specs.getValue()));
+
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "NOT_EQUAL operation is not supported for column type: " + fieldType.getSimpleName());
+        }
+    }
+
+    private Predicate createNotLikePredicate(From<?, ?> from,
+                                             CriteriaBuilder criteriaBuilder,
+                                             SpecsDto specs,
+                                             Class<?> fieldType) {
+
+        if (fieldType == String.class) {
+            return criteriaBuilder.notLike(
+                    criteriaBuilder.lower(from.get(specs.getColumn())),
+                    "%" + specs.getValue().toLowerCase() + "%"
+            );
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "NOT_LIKE operation is only supported for String type");
+        }
+    }
+
+    private Predicate createNotInPredicate(From<?, ?> from,
+                                           CriteriaBuilder criteriaBuilder,
+                                           SpecsDto specs,
+                                           Class<?> fieldType) {
+
+        Predicate inPredicate = createInPredicate(from, criteriaBuilder, specs, fieldType);
+        return criteriaBuilder.not(inPredicate);
+    }
+
+
+
+
     private Join<Object, Object> getJoin(From<?, ?> root, String joinTable) {
         try {
             String[] joinTableSplit = joinTable.split("\\.");
@@ -275,7 +349,7 @@ public class BaseSpecification<T> {
         private Operation operation;
 
         public enum Operation {
-            EQUAL, LIKE, IN, GREATER_THAN, LESS_THAN, BETWEEN
+            EQUAL, LIKE, IN, GREATER_THAN, LESS_THAN, BETWEEN,    NOT_EQUAL, NOT_LIKE, NOT_IN
         }
     }
 
